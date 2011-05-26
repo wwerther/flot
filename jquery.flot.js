@@ -897,6 +897,20 @@
                 ctx.restore();
             }
 
+	    if (opts.axisLabel) {
+	                ctx.save();
+        	        ctx.font = f.style + " " + f.variant + " " + f.weight + " " + f.size + "px '" + f.family + "'";
+                        m = ctx.measureText(opts.axisLabel);
+			h= m.height != null ? m.height : f.size;
+                        axisw = axisw + h;
+	                ctx.restore();
+		    if (axis.direction == 'y') {
+                        axisw = axisw + h;
+		    } else {
+                        axish = axish + h;
+		    }
+	    }
+
             axis.labelWidth = Math.ceil(axisw);
             axis.labelHeight = Math.ceil(axish);
         }
@@ -1745,6 +1759,32 @@
                         ctx.fillText(line.text, x, y);
                     }
                 }
+		if (axis.options.axisLabel) {
+	        	ctx.save();
+        	        ctx.font = f.style + " " + f.variant + " " + f.weight + " " + f.size + "px '" + f.family + "'";
+                        m = ctx.measureText(axis.options.axisLabel);
+			h= m.height != null ? m.height : f.size;
+			w= m.width;
+			if (axis.direction == 'y') {
+				if (axis.options.position=='left') {
+					angle =  - Math.PI/2 ;
+					ydiff = w/2;
+				} else { 
+					angle = Math.PI/2;
+					ydiff = -w/2;
+					x = x + box.width - box.padding;
+				}
+				y = (box.height / 2) + ydiff;
+				x = x-h;
+			} else {
+				angle=0
+			}
+                        ctx.translate(x, y);
+                        ctx.rotate(angle);
+                        ctx.fillText(axis.options.axisLabel, 0, 0);
+	        	ctx.restore();
+	      }
+
             });
 
             ctx.restore();
