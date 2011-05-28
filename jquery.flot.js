@@ -133,7 +133,8 @@
                     clickable: false,
                     hoverable: false,
                     autoHighlight: true, // highlight in case mouse is near
-                    mouseActiveRadius: 10 // how far the mouse can be away to activate an item
+                    mouseActiveRadius: 10, // how far the mouse can be away to activate an item
+		    mouseActiveIgnoreY: false, // shall we ignore the Y-Distance when searching for datapoints
                 },
                 interaction: {
                     redrawOverlayInterval: 1000/60 // time between updates, -1 means in same flow
@@ -2368,13 +2369,13 @@
                         // For points and lines, the cursor must be within a
                         // certain distance to the data point
                         if (x - mx > maxx || x - mx < -maxx ||
-                            y - my > maxy || y - my < -maxy)
+                            (y - my > maxy || y - my < -maxy) && ! options.grid.mouseActiveIgnoreY )
                             continue;
 
                         // We have to calculate distances in pixels, not in
                         // data units, because the scales of the axes may be different
-                        var dx = Math.abs(axisx.p2c(x) - mouseX),
-                            dy = Math.abs(axisy.p2c(y) - mouseY),
+                        var dx = Math.abs(axisx.p2c(x) - mouseX);
+                            dy = options.grid.mouseActiveIgnoreY ? 0 : Math.abs(axisy.p2c(y) - mouseY);
                             dist = dx * dx + dy * dy; // we save the sqrt
 
                         // use <= to ensure last point takes precedence
@@ -2440,6 +2441,7 @@
         // trigger click or hover event (they send the same parameters
         // so we share their code)
         function triggerClickHoverEvent(eventname, event, seriesFilter) {
+
             var offset = eventHolder.offset(),
                 canvasX = event.pageX - offset.left - plotOffset.left,
                 canvasY = event.pageY - offset.top - plotOffset.top,
@@ -2447,6 +2449,7 @@
 
             pos.pageX = event.pageX;
             pos.pageY = event.pageY;
+
 
             var item = findNearbyItem(canvasX, canvasY, seriesFilter);
 
@@ -2467,8 +2470,16 @@
                         unhighlight(h.series, h.point);
                 }
                 
-                if (item)
-                    highlight(item.series, item.datapoint, eventname);
+                if (item) {
+			if (options.grid.mouseActiveIgnoreY)
+				for (i = 0; i < series.length; ++i) {
+			            highlight(i, item.dataIndex, eventname);
+				}
+			else
+				highlight(item.series, item.datapoint, eventname);
+
+		}
+
             }
             
             placeholder.trigger(eventname, [ pos, item ]);
