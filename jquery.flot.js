@@ -2482,7 +2482,7 @@
 
             }
             
-            placeholder.trigger(eventname, [ pos, item, series ]);
+            placeholder.trigger(eventname, [ pos, item, placeholder ]);
         }
 
         function triggerRedrawOverlay() {
