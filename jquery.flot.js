@@ -2481,8 +2481,7 @@
 		}
 
             }
-            
-            placeholder.trigger(eventname, [ pos, item, placeholder ]);
+            placeholder.trigger(eventname, [ pos, item, placeholder, event ]);
         }
 
         function triggerRedrawOverlay() {
