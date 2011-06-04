@@ -1792,6 +1792,7 @@
         }
 
         function drawSeries(series) {
+		if (series.yaxis.n < 0) return;
             if (series.lines.show)
                 drawSeriesLines(series);
             if (series.bars.show)
@@ -2342,6 +2343,7 @@
             for (i = series.length - 1; i >= 0; --i) {
                 if (!seriesFilter(series[i]))
                     continue;
+                if (series[i].yaxis.n<0) continue;
                 
                 var s = series[i],
                     axisx = s.xaxis,
