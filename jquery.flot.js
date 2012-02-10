@@ -52,7 +52,7 @@
                     margin: 5, // distance from grid edge to default legend container within plot
                     backgroundColor: null, // null means auto-detect
                     backgroundOpacity: 0.85, // set to 0 to avoid background
-                    type: "html", // set to "canvas" to draw legend into canvas
+                    type: "html" // set to "canvas" to draw legend into canvas
                 },
                 xaxis: {
                     show: null, // null = auto-detect, true = always, false = never
