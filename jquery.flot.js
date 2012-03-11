@@ -30,8 +30,6 @@
  */ 
 (function(B){B.color={};B.color.make=function(F,E,C,D){var G={};G.r=F||0;G.g=E||0;G.b=C||0;G.a=D!=null?D:1;G.add=function(J,I){for(var H=0;H<J.length;++H){G[J.charAt(H)]+=I}return G.normalize()};G.scale=function(J,I){for(var H=0;H<J.length;++H){G[J.charAt(H)]*=I}return G.normalize()};G.toString=function(){if(G.a>=1){return"rgb("+[G.r,G.g,G.b].join(",")+")"}else{return"rgba("+[G.r,G.g,G.b,G.a].join(",")+")"}};G.normalize=function(){function H(J,K,I){return K<J?J:(K>I?I:K)}G.r=H(0,parseInt(G.r),255);G.g=H(0,parseInt(G.g),255);G.b=H(0,parseInt(G.b),255);G.a=H(0,G.a,1);return G};G.clone=function(){return B.color.make(G.r,G.b,G.g,G.a)};return G.normalize()};B.color.extract=function(D,C){var E;do{E=D.css(C).toLowerCase();if(E!=""&&E!="transparent"){break}D=D.parent()}while(!B.nodeName(D.get(0),"body"));if(E=="rgba(0, 0, 0, 0)"){E="transparent"}return B.color.parse(E)};B.color.parse=function(F){var E,C=B.color.make;if(E=/rgb\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*\)/.exec(F)){return C(parseInt(E[1],10),parseInt(E[2],10),parseInt(E[3],10))}if(E=/rgba\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]+(?:\.[0-9]+)?)\s*\)/.exec(F)){return C(parseInt(E[1],10),parseInt(E[2],10),parseInt(E[3],10),parseFloat(E[4]))}if(E=/rgb\(\s*([0-9]+(?:\.[0-9]+)?)\%\s*,\s*([0-9]+(?:\.[0-9]+)?)\%\s*,\s*([0-9]+(?:\.[0-9]+)?)\%\s*\)/.exec(F)){return C(parseFloat(E[1])*2.55,parseFloat(E[2])*2.55,parseFloat(E[3])*2.55)}if(E=/rgba\(\s*([0-9]+(?:\.[0-9]+)?)\%\s*,\s*([0-9]+(?:\.[0-9]+)?)\%\s*,\s*([0-9]+(?:\.[0-9]+)?)\%\s*,\s*([0-9]+(?:\.[0-9]+)?)\s*\)/.exec(F)){return C(parseFloat(E[1])*2.55,parseFloat(E[2])*2.55,parseFloat(E[3])*2.55,parseFloat(E[4]))}if(E=/#([a-fA-F0-9]{2})([a-fA-F0-9]{2})([a-fA-F0-9]{2})/.exec(F)){return C(parseInt(E[1],16),parseInt(E[2],16),parseInt(E[3],16))}if(E=/#([a-fA-F0-9])([a-fA-F0-9])([a-fA-F0-9])/.exec(F)){return C(parseInt(E[1]+E[1],16),parseInt(E[2]+E[2],16),parseInt(E[3]+E[3],16))}var D=B.trim(F).toLowerCase();if(D=="transparent"){return C(255,255,255,0)}else{E=A[D]||[0,0,0];return C(E[0],E[1],E[2])}};var A={aqua:[0,255,255],azure:[240,255,255],beige:[245,245,220],black:[0,0,0],blue:[0,0,255],brown:[165,42,42],cyan:[0,255,255],darkblue:[0,0,139],darkcyan:[0,139,139],darkgrey:[169,169,169],darkgreen:[0,100,0],darkkhaki:[189,183,107],darkmagenta:[139,0,139],darkolivegreen:[85,107,47],darkorange:[255,140,0],darkorchid:[153,50,204],darkred:[139,0,0],darksalmon:[233,150,122],darkviolet:[148,0,211],fuchsia:[255,0,255],gold:[255,215,0],green:[0,128,0],indigo:[75,0,130],khaki:[240,230,140],lightblue:[173,216,230],lightcyan:[224,255,255],lightgreen:[144,238,144],lightgrey:[211,211,211],lightpink:[255,182,193],lightyellow:[255,255,224],lime:[0,255,0],magenta:[255,0,255],maroon:[128,0,0],navy:[0,0,128],olive:[128,128,0],orange:[255,165,0],pink:[255,192,203],purple:[128,0,128],violet:[128,0,128],red:[255,0,0],silver:[192,192,192],white:[255,255,255],yellow:[255,255,0]}})(jQuery);
 
-//this comment is to test merge
-
 // the actual Flot code
 (function($) {
     function Plot(placeholder, data_, options_, plugins) {
@@ -72,6 +70,7 @@
                     tickFormatter: null, // fn: number -> string
                     labelWidth: null, // size of tick labels in pixels
                     labelHeight: null,
+                    labelAngle: null,
                     reserveSpace: null, // whether to reserve space even if axis isn't shown
                     tickLength: null, // size in pixels of ticks, or "full" for whole line
                     alignTicksWithAxis: null, // axis number or null for no sync
@@ -251,6 +250,10 @@
                 options.xaxis.tickColor = options.grid.tickColor;
             if (options.yaxis.tickColor == null) // backwards-compatibility
                 options.yaxis.tickColor = options.grid.tickColor;
+
+            // Transform angle in radiants
+            if (options.xaxis.labelAngle != null)
+                options.xaxis.labelAngle = (options.xaxis.labelAngle * Math.PI) / 180;
 
             if (options.grid.borderColor == null)
                 options.grid.borderColor = options.grid.color;
@@ -879,9 +882,18 @@
                         m = ctx.measureText(line.text);
                     
                     line.width = m.width;
+                    
                     // m.height might not be defined, not in the
                     // standard yet
                     line.height = m.height != null ? m.height : f.size;
+
+                    var angle = opts.labelAngle;
+                    if(angle) {
+                        var abs = Math.abs, sin = Math.sin, cos = Math.cos,
+                        w = line.width, h = line.height;
+                        line.height = abs(w * sin(angle)) + abs(h * cos(angle));
+                        line.width = abs(w * cos(angle)) + abs(h * sin(angle));
+                    }
 
                     // add a bit of margin since font rendering is
                     // not pixel perfect and cut off letters look
@@ -1138,7 +1150,8 @@
             else
                 // heuristic based on the model a*sqrt(x) fitted to
                 // some data points that seemed reasonable
-                noTicks = 0.3 * Math.sqrt(axis.direction == "x" ? canvasWidth : canvasHeight);
+                // Increase factor if labels have an angle
+                noTicks = (0.3 + (opts.labelAngle ? Math.abs(Math.sin(opts.labelAngle)) * .5 : 0)) * Math.sqrt(axis.direction == "x" ? canvasWidth : canvasHeight);
 
             var delta = (axis.max - axis.min) / noTicks,
                 size, generator, unit, formatter, i, magn, norm;
@@ -1713,41 +1726,64 @@
                     if (!tick.label || tick.v < axis.min || tick.v > axis.max)
                         continue;
 
-                    var x, y, offset = 0, line;
+                    var x, y, offset = 0, line, angle;
                     for (var k = 0; k < tick.lines.length; ++k) {
                         line = tick.lines[k];
-                        
-                        if (axis.direction == "x") {
-                            x = plotOffset.left + axis.p2c(tick.v) - line.width/2;
-                            if (axis.position == "bottom")
-                                y = box.top + box.padding;
-                            else
-                                y = box.top + box.height - box.padding - tick.height;
-                        }
-                        else {
-                            y = plotOffset.top + axis.p2c(tick.v) - tick.height/2;
-                            if (axis.position == "left")
-                                x = box.left + box.width - box.padding - line.width;
-                            else
-                                x = box.left + box.padding;
-                        }
+                        angle = axis.options.labelAngle
 
-                        // account for middle aligning and line number
-                        y += line.height/2 + offset;
-                        offset += line.height;
+                        if(angle) {
+                            ctx.save();
+                            x = plotOffset.left + axis.p2c(tick.v);
+                            y = box.top + 2 * box.padding;
 
-                        if ($.browser.opera) {
-                            // FIXME: UGLY BROWSER DETECTION
-                            // round the coordinates since Opera
-                            // otherwise switches to more ugly
-                            // rendering (probably non-hinted) and
-                            // offset the y coordinates since it seems
-                            // to be off pretty consistently compared
-                            // to the other browsers
-                            x = Math.floor(x);
-                            y = Math.ceil(y - 2);
+                            var sin_angle = Math.sin(angle);
+                            var cos_angle = Math.cos(angle);
+
+                            if (sin_angle < 0 && cos_angle < 0) {
+                                x += line.width - 2*box.padding;
+                                y += line.height - 2*box.padding;
+                            } else if (sin_angle < 0 && cos_angle > 0) {
+                                x -= line.width - 2*box.padding;
+                                y += line.height - 2*box.padding;
+                            }
+
+                            ctx.translate(x, y);
+                            ctx.rotate(angle);
+                            ctx.fillText(line.text, 0, 0);
+                            ctx.restore();
+                        } else {
+                            if (axis.direction == "x") {
+                                x = plotOffset.left + axis.p2c(tick.v) - line.width/2;
+                                if (axis.position == "bottom")
+                                    y = box.top + box.padding;
+                                else
+                                    y = box.top + box.height - box.padding - tick.height;
+                            }
+                            else {
+                                y = plotOffset.top + axis.p2c(tick.v) - tick.height/2;
+                                if (axis.position == "left")
+                                    x = box.left + box.width - box.padding - line.width;
+                                else
+                                    x = box.left + box.padding;
+                            }
+
+                            // account for middle aligning and line number
+                            y += line.height/2 + offset;
+                            offset += line.height;
+
+                            if ($.browser.opera) {
+                                // FIXME: UGLY BROWSER DETECTION
+                                // round the coordinates since Opera
+                                // otherwise switches to more ugly
+                                // rendering (probably non-hinted) and
+                                // offset the y coordinates since it seems
+                                // to be off pretty consistently compared
+                                // to the other browsers
+                                x = Math.floor(x);
+                                y = Math.ceil(y - 2);
+                            }
+                            ctx.fillText(line.text, x, y);
                         }
-                        ctx.fillText(line.text, x, y);
                     }
                 }
             });
@@ -2019,28 +2055,75 @@
         }
 
         function drawSeriesPoints(series) {
-            function plotPoints(datapoints, radius, fillStyle, offset, shadow, axisx, axisy, symbol) {
+            function plotPoints(datapoints, radius, fillStyle, offset, shadow, axisx, axisy, symbol, image) {
                 var points = datapoints.points, ps = datapoints.pointsize;
 
-                for (var i = 0; i < points.length; i += ps) {
-                    var x = points[i], y = points[i + 1];
-                    if (x == null || x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
-                        continue;
-                    
-                    ctx.beginPath();
-                    x = axisx.p2c(x);
-                    y = axisy.p2c(y) + offset;
-                    if (symbol == "circle")
-                        ctx.arc(x, y, radius, 0, shadow ? Math.PI : Math.PI * 2, false);
-                    else
-                        symbol(ctx, x, y, radius, shadow);
-                    ctx.closePath();
-                    
-                    if (fillStyle) {
-                        ctx.fillStyle = fillStyle;
-                        ctx.fill();
-                    }
-                    ctx.stroke();
+								if(symbol == "image") //needs work at 2815+ too
+                {	
+                	if(offset == 0) //so overlap dot doesn't get plotted
+                	{			
+	                	var img = new Image();  
+										img.src = image;
+										//img.src = '/public/img/circle.gif';
+	                	img.onload = function(){
+	                	
+		                	for (var i = 0; i < points.length; i += ps) {
+		                  
+			                  var x = points[i], y = points[i + 1];
+			                  if (x == null || x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
+			                      continue;   
+			                      
+			                 	//console.log(datapoints);
+														
+												//this is insane but it works											
+												//x = parseInt(axisx.p2c(x)) - parseInt(radius) - parseInt(ctx.lineWidth*2); 
+												//y = parseInt(axisy.p2c(y)) + parseInt(offset) + parseInt(radius*2) - parseInt(img.height/2) + parseInt(ctx.lineWidth*2);
+	
+												//x = parseInt(axisx.p2c(x)) - parseInt(radius) - parseInt(ctx.lineWidth*2); 
+												//y = parseInt(axisy.p2c(y)) + parseInt(offset) + parseInt(radius*2) - parseInt(img.height/2) + parseInt(ctx.lineWidth*2);
+
+												x = parseInt(axisx.p2c(x)) - parseInt(radius) - parseInt(ctx.lineWidth*2); 
+												y = parseInt(axisy.p2c(y)) + parseInt(radius*2) - parseInt(img.height/2) + parseInt(ctx.lineWidth*2);
+												
+												//console.log(offset);
+												
+												//ctx.beginPath();
+												//console.log(ctx.fillStyle);
+												
+	                      //console.log('X: ' + x + ' Y: ' + y);                
+	                      //console.log('Width: ' + img.width + ' Height: ' + img.height + ' Radius: ' + radius + ' Line Width: ' + ctx.lineWidth);                													
+	                      
+	                      //ctx.drawImage(img,x,y);
+	                      ctx.drawImage(img,x+img.width*.1,y+img.height*.1,img.width*.9,img.height*.9);
+		
+			                }			            
+									  }
+								  }
+                }
+                else
+                {																
+	                for (var i = 0; i < points.length; i += ps) {
+	                  
+	                  var x = points[i], y = points[i + 1];
+	                  if (x == null || x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
+	                      continue;                 
+	                                    
+	                    ctx.beginPath();
+	                  	x = axisx.p2c(x);
+	                    y = axisy.p2c(y) + offset;	 
+	                    	                                       
+	                    if (symbol == "circle")
+	                        ctx.arc(x, y, radius, 0, shadow ? Math.PI : Math.PI * 2, false);
+	                   	else
+	                        symbol(ctx, x, y, radius, shadow);
+	                    ctx.closePath();
+	                    
+	                    if (fillStyle) {
+	                        ctx.fillStyle = fillStyle;
+	                        ctx.fill();
+	                    }
+	                    ctx.stroke();
+	                }
                 }
             }
             
@@ -2068,7 +2151,7 @@
             ctx.strokeStyle = series.color;
             plotPoints(series.datapoints, radius,
                        getFillStyle(series.points, series.color), 0, false,
-                       series.xaxis, series.yaxis, symbol);
+                       series.xaxis, series.yaxis, symbol, series.image); //added image
             ctx.restore();
         }
 
@@ -2762,20 +2845,76 @@
             if (x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
                 return;
             
-            var pointRadius = series.points.radius + series.points.lineWidth / 2;
-            octx.lineWidth = pointRadius;
-            octx.strokeStyle = highlightColor;
-            var radius = 1.5 * pointRadius,
-                x = axisx.p2c(x),
-                y = axisy.p2c(y);
-            
-            octx.beginPath();
-            if (series.points.symbol == "circle")
-                octx.arc(x, y, radius, 0, 2 * Math.PI, false);
+            if(series.points.symbol == "image")
+            {
+            	console.log(series);
+            	
+            	/*
+	            var pointRadius = series.points.radius + series.points.lineWidth / 2;
+	            octx.lineWidth = pointRadius;
+	            octx.strokeStyle = $.color.parse(series.color).scale('a', 0.5).toString();
+	            var radius = 1.5 * pointRadius,
+	                x = axisx.p2c(x),
+	                y = axisy.p2c(y);
+							
+							octx.lineWidth = 10;
+	            
+	            octx.beginPath();
+
+	           	octx.arc(x, y, 40, 0, 2 * Math.PI, false);
+
+	            octx.closePath();
+	            //octx.fill(); //nope
+	            
+	            octx.stroke();
+	            */
+	        
+	            var pointRadius = series.points.radius + series.points.lineWidth / 2;
+	            octx.lineWidth = pointRadius;
+	            
+            	var img = new Image();  
+							img.src = series.image;
+							//img.src = '/public/img/circle.gif';
+            	img.onload = function(){
+          
+               	//console.log(datapoints);
+										
+								//this is insane but it works											
+								//x = parseInt(axisx.p2c(x)) - parseInt(radius) - parseInt(ctx.lineWidth*2); 
+								//y = parseInt(axisy.p2c(y)) + parseInt(offset) + parseInt(radius*2) - parseInt(img.height/2) + parseInt(ctx.lineWidth*2);
+
+								//x = parseInt(axisx.p2c(x) - parseInt(octx.lineWidth*2)); 
+								//y = parseInt(axisy.p2c(y)) - img.height/2;
+								
+								x = parseInt(axisx.p2c(x)) - parseInt(octx.lineWidth*2); 
+								y = parseInt(axisy.p2c(y)) - parseInt(img.height/2) + parseInt(octx.lineWidth*10);
+	              
+	              console.log(x);
+	              console.log(y);  
+	                
+                //ctx.drawImage(img,x,y);
+                octx.drawImage(img,x,y);
+							}
+	            
+            }
             else
-                series.points.symbol(octx, x, y, radius, false);
-            octx.closePath();
-            octx.stroke();
+            {                                           
+	            var pointRadius = series.points.radius + series.points.lineWidth / 2;
+	            octx.lineWidth = pointRadius;
+            	octx.strokeStyle = highlightColor;
+	            var radius = 1.5 * pointRadius,
+	                x = axisx.p2c(x),
+	                y = axisy.p2c(y);
+	            
+	            octx.beginPath();
+	            if (series.points.symbol == "circle")
+	                octx.arc(x, y, radius, 0, 2 * Math.PI, false);
+	            else
+	                series.points.symbol(octx, x, y, radius, false);
+	            octx.closePath();
+	            octx.stroke();
+            
+            }
         }
 
         function drawBarHighlight(series, point) {
