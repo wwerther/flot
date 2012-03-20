@@ -137,7 +137,7 @@
                     hoverable: false,
                     autoHighlight: true, // highlight in case mouse is near
                     mouseActiveRadius: 10, // how far the mouse can be away to activate an item
-		    mouseActiveIgnoreY: false, // shall we ignore the Y-Distance when searching for datapoints
+		    mouseActiveIgnoreY: false // shall we ignore the Y-Distance when searching for datapoints
                 },
                 interaction: {
                     redrawOverlayInterval: 1000/60 // time between updates, -1 means in same flow
