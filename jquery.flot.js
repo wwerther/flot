@@ -115,7 +115,8 @@
                         align: "left", // or "center" 
                         horizontal: false
                     },
-                    shadowSize: 3
+                    shadowSize: 3,
+                    highlightColor: null
                 },
                 grid: {
                     show: true,
@@ -292,6 +293,8 @@
                 $.extend(true, options.series.bars, options.bars);
             if (options.shadowSize != null)
                 options.series.shadowSize = options.shadowSize;
+            if (options.highlightColor != null)
+                options.series.highlightColor = options.highlightColor;
 
             // save options on axes for future reference
             for (i = 0; i < options.xaxes.length; ++i)
@@ -880,7 +883,6 @@
                         m = ctx.measureText(line.text);
                     
                     line.width = m.width;
-
                     // m.height might not be defined, not in the
                     // standard yet
                     line.height = m.height != null ? m.height : f.size;
@@ -2094,28 +2096,75 @@
         }
 
         function drawSeriesPoints(series) {
-            function plotPoints(datapoints, radius, fillStyle, offset, shadow, axisx, axisy, symbol) {
+            function plotPoints(datapoints, radius, fillStyle, offset, shadow, axisx, axisy, symbol, image) {
                 var points = datapoints.points, ps = datapoints.pointsize;
 
-                for (var i = 0; i < points.length; i += ps) {
-                    var x = points[i], y = points[i + 1];
-                    if (x == null || x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
-                        continue;
-                    
-                    ctx.beginPath();
-                    x = axisx.p2c(x);
-                    y = axisy.p2c(y) + offset;
-                    if (symbol == "circle")
-                        ctx.arc(x, y, radius, 0, shadow ? Math.PI : Math.PI * 2, false);
-                    else
-                        symbol(ctx, x, y, radius, shadow);
-                    ctx.closePath();
-                    
-                    if (fillStyle) {
-                        ctx.fillStyle = fillStyle;
-                        ctx.fill();
-                    }
-                    ctx.stroke();
+								if(symbol == "image") //needs work at 2815+ too
+                {	
+                	if(offset == 0) //so overlap dot doesn't get plotted
+                	{			
+	                	var img = new Image();  
+										img.src = image;
+										//img.src = '/public/img/circle.gif';
+	                	img.onload = function(){
+	                	
+		                	for (var i = 0; i < points.length; i += ps) {
+		                  
+			                  var x = points[i], y = points[i + 1];
+			                  if (x == null || x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
+			                      continue;   
+			                      
+			                 	//console.log(datapoints);
+														
+												//this is insane but it works											
+												//x = parseInt(axisx.p2c(x)) - parseInt(radius) - parseInt(ctx.lineWidth*2); 
+												//y = parseInt(axisy.p2c(y)) + parseInt(offset) + parseInt(radius*2) - parseInt(img.height/2) + parseInt(ctx.lineWidth*2);
+	
+												//x = parseInt(axisx.p2c(x)) - parseInt(radius) - parseInt(ctx.lineWidth*2); 
+												//y = parseInt(axisy.p2c(y)) + parseInt(offset) + parseInt(radius*2) - parseInt(img.height/2) + parseInt(ctx.lineWidth*2);
+
+												x = parseInt(axisx.p2c(x)) - parseInt(radius) - parseInt(ctx.lineWidth*2); 
+												y = parseInt(axisy.p2c(y)) + parseInt(radius*2) - parseInt(img.height/2) + parseInt(ctx.lineWidth*2);
+												
+												//console.log(offset);
+												
+												//ctx.beginPath();
+												//console.log(ctx.fillStyle);
+												
+	                      //console.log('X: ' + x + ' Y: ' + y);                
+	                      //console.log('Width: ' + img.width + ' Height: ' + img.height + ' Radius: ' + radius + ' Line Width: ' + ctx.lineWidth);                													
+	                      
+	                      //ctx.drawImage(img,x,y);
+	                      ctx.drawImage(img,x+img.width*.1,y+img.height*.1,img.width*.9,img.height*.9);
+		
+			                }			            
+									  }
+								  }
+                }
+                else
+                {																
+	                for (var i = 0; i < points.length; i += ps) {
+	                  
+	                  var x = points[i], y = points[i + 1];
+	                  if (x == null || x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
+	                      continue;                 
+	                                    
+	                    ctx.beginPath();
+	                  	x = axisx.p2c(x);
+	                    y = axisy.p2c(y) + offset;	 
+	                    	                                       
+	                    if (symbol == "circle")
+	                        ctx.arc(x, y, radius, 0, shadow ? Math.PI : Math.PI * 2, false);
+	                   	else
+	                        symbol(ctx, x, y, radius, shadow);
+	                    ctx.closePath();
+	                    
+	                    if (fillStyle) {
+	                        ctx.fillStyle = fillStyle;
+	                        ctx.fill();
+	                    }
+	                    ctx.stroke();
+	                }
                 }
             }
             
@@ -2143,7 +2192,7 @@
             ctx.strokeStyle = series.color;
             plotPoints(series.datapoints, radius,
                        getFillStyle(series.points, series.color), 0, false,
-                       series.xaxis, series.yaxis, symbol);
+                       series.xaxis, series.yaxis, symbol, series.image); //added image
             ctx.restore();
         }
 
@@ -2842,31 +2891,91 @@
         function drawPointHighlight(series, point) {
             var x = point[0], y = point[1],
                 axisx = series.xaxis, axisy = series.yaxis;
+                highlightColor = (typeof series.highlightColor === "string") ? series.highlightColor : $.color.parse(series.color).scale('a', 0.5).toString();
             
             if (x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
                 return;
             
-            var pointRadius = series.points.radius + series.points.lineWidth / 2;
-            octx.lineWidth = pointRadius;
-            octx.strokeStyle = $.color.parse(series.color).scale('a', 0.5).toString();
-            var radius = 1.5 * pointRadius,
-                x = axisx.p2c(x),
-                y = axisy.p2c(y);
-            
-            octx.beginPath();
-            if (series.points.symbol == "circle")
-                octx.arc(x, y, radius, 0, 2 * Math.PI, false);
+            if(series.points.symbol == "image")
+            {
+            	console.log(series);
+            	
+            	/*
+	            var pointRadius = series.points.radius + series.points.lineWidth / 2;
+	            octx.lineWidth = pointRadius;
+	            octx.strokeStyle = $.color.parse(series.color).scale('a', 0.5).toString();
+	            var radius = 1.5 * pointRadius,
+	                x = axisx.p2c(x),
+	                y = axisy.p2c(y);
+							
+							octx.lineWidth = 10;
+	            
+	            octx.beginPath();
+
+	           	octx.arc(x, y, 40, 0, 2 * Math.PI, false);
+
+	            octx.closePath();
+	            //octx.fill(); //nope
+	            
+	            octx.stroke();
+	            */
+	        
+	            var pointRadius = series.points.radius + series.points.lineWidth / 2;
+	            octx.lineWidth = pointRadius;
+	            
+            	var img = new Image();  
+							img.src = series.image;
+							//img.src = '/public/img/circle.gif';
+            	img.onload = function(){
+          
+               	//console.log(datapoints);
+										
+								//this is insane but it works											
+								//x = parseInt(axisx.p2c(x)) - parseInt(radius) - parseInt(ctx.lineWidth*2); 
+								//y = parseInt(axisy.p2c(y)) + parseInt(offset) + parseInt(radius*2) - parseInt(img.height/2) + parseInt(ctx.lineWidth*2);
+
+								//x = parseInt(axisx.p2c(x) - parseInt(octx.lineWidth*2)); 
+								//y = parseInt(axisy.p2c(y)) - img.height/2;
+								
+								x = parseInt(axisx.p2c(x)) - parseInt(octx.lineWidth*2); 
+								y = parseInt(axisy.p2c(y)) - parseInt(img.height/2) + parseInt(octx.lineWidth*10);
+	              
+	              console.log(x);
+	              console.log(y);  
+	                
+                //ctx.drawImage(img,x,y);
+                octx.drawImage(img,x,y);
+							}
+	            
+            }
             else
-                series.points.symbol(octx, x, y, radius, false);
-            octx.closePath();
-            octx.stroke();
+            {                                           
+	            var pointRadius = series.points.radius + series.points.lineWidth / 2;
+	            octx.lineWidth = pointRadius;
+            	octx.strokeStyle = highlightColor;
+	            var radius = 1.5 * pointRadius,
+	                x = axisx.p2c(x),
+	                y = axisy.p2c(y);
+	            
+	            octx.beginPath();
+	            if (series.points.symbol == "circle")
+	                octx.arc(x, y, radius, 0, 2 * Math.PI, false);
+	            else
+	                series.points.symbol(octx, x, y, radius, false);
+	            octx.closePath();
+	            octx.stroke();
+            
+            }
         }
 
         function drawBarHighlight(series, point) {
+            var highlightColor = (typeof series.highlightColor === "string") ? series.highlightColor : $.color.parse(series.color).scale('a', 0.5).toString(),
+                fillStyle = highlightColor,
+                barLeft = series.bars.align == "left" ? 0 : -series.bars.barWidth/2;
+                
             octx.lineWidth = series.bars.lineWidth;
-            octx.strokeStyle = $.color.parse(series.color).scale('a', 0.5).toString();
-            var fillStyle = $.color.parse(series.color).scale('a', 0.5).toString();
-            var barLeft = series.bars.align == "left" ? 0 : -series.bars.barWidth/2;
+            octx.strokeStyle = highlightColor;
+            
             drawBar(point[0], point[1], point[2] || 0, barLeft, barLeft + series.bars.barWidth,
                     0, function () { return fillStyle; }, series.xaxis, series.yaxis, octx, series.bars.horizontal, series.bars.lineWidth);
         }
