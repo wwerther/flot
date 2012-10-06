@@ -70,7 +70,6 @@
                     tickFormatter: null, // fn: number -> string
                     labelWidth: null, // size of tick labels in pixels
                     labelHeight: null,
-                    labelAngle: null,
                     reserveSpace: null, // whether to reserve space even if axis isn't shown
                     tickLength: null, // size in pixels of ticks, or "full" for whole line
                     alignTicksWithAxis: null, // axis number or null for no sync
@@ -115,8 +114,7 @@
                         align: "left", // or "center" 
                         horizontal: false
                     },
-                    shadowSize: 3,
-                    highlightColor: null
+                    shadowSize: 3
                 },
                 grid: {
                     show: true,
@@ -136,8 +134,7 @@
                     clickable: false,
                     hoverable: false,
                     autoHighlight: true, // highlight in case mouse is near
-                    mouseActiveRadius: 10, // how far the mouse can be away to activate an item
-		    mouseActiveIgnoreY: false // shall we ignore the Y-Distance when searching for datapoints
+                    mouseActiveRadius: 10 // how far the mouse can be away to activate an item
                 },
                 interaction: {
                     redrawOverlayInterval: 1000/60 // time between updates, -1 means in same flow
@@ -252,10 +249,6 @@
             if (options.yaxis.tickColor == null) // backwards-compatibility
                 options.yaxis.tickColor = options.grid.tickColor;
 
-            // Transform angle in radiants
-            if (options.xaxis.labelAngle != null)
-                options.xaxis.labelAngle = (options.xaxis.labelAngle * Math.PI) / 180;
-
             if (options.grid.borderColor == null)
                 options.grid.borderColor = options.grid.color;
             if (options.grid.tickColor == null)
@@ -293,8 +286,6 @@
                 $.extend(true, options.series.bars, options.bars);
             if (options.shadowSize != null)
                 options.series.shadowSize = options.shadowSize;
-            if (options.highlightColor != null)
-                options.series.highlightColor = options.highlightColor;
 
             // save options on axes for future reference
             for (i = 0; i < options.xaxes.length; ++i)
@@ -887,14 +878,6 @@
                     // standard yet
                     line.height = m.height != null ? m.height : f.size;
 
-                    var angle = opts.labelAngle;
-                    if(angle) {
-                        var abs = Math.abs, sin = Math.sin, cos = Math.cos,
-                        w = line.width, h = line.height;
-                        line.height = abs(w * sin(angle)) + abs(h * cos(angle));
-                        line.width = abs(w * cos(angle)) + abs(h * sin(angle));
-                    }
-
                     // add a bit of margin since font rendering is
                     // not pixel perfect and cut off letters look
                     // bad, this also doubles as spacing between
@@ -913,20 +896,6 @@
                     axish = Math.max(axish, t.height);
             }
             ctx.restore();
-
-	    if (opts.axisLabel) {
-	                ctx.save();
-        	        ctx.font = f.style + " " + f.variant + " " + f.weight + " " + f.size + "px '" + f.family + "'";
-                        m = ctx.measureText(opts.axisLabel);
-			h= m.height != null ? m.height : f.size;
-                        axisw = axisw + h;
-	                ctx.restore();
-		    if (axis.direction == 'y') {
-                        axisw = axisw + h;
-		    } else {
-                        axish = axish + h;
-		    }
-	    }
 
             axis.labelWidth = Math.ceil(axisw);
             axis.labelHeight = Math.ceil(axish);
@@ -1164,8 +1133,7 @@
             else
                 // heuristic based on the model a*sqrt(x) fitted to
                 // some data points that seemed reasonable
-                // Increase factor if labels have an angle
-                noTicks = (0.3 + (opts.labelAngle ? Math.abs(Math.sin(opts.labelAngle)) * .5 : 0)) * Math.sqrt(axis.direction == "x" ? canvasWidth : canvasHeight);
+                noTicks = 0.3 * Math.sqrt(axis.direction == "x" ? canvasWidth : canvasHeight);
 
             var delta = (axis.max - axis.min) / noTicks,
                 size, generator, unit, formatter, i, magn, norm;
@@ -1740,99 +1708,49 @@
                     if (!tick.label || tick.v < axis.min || tick.v > axis.max)
                         continue;
 
-                    var x, y, offset = 0, line, angle;
+                    var x, y, offset = 0, line;
                     for (var k = 0; k < tick.lines.length; ++k) {
                         line = tick.lines[k];
-                        angle = axis.options.labelAngle
-
-                        if(angle) {
-                            ctx.save();
-                            x = plotOffset.left + axis.p2c(tick.v);
-                            y = box.top + 2 * box.padding;
-
-                            var sin_angle = Math.sin(angle);
-                            var cos_angle = Math.cos(angle);
-
-                            if (sin_angle < 0 && cos_angle < 0) {
-                                x += line.width - 2*box.padding;
-                                y += line.height - 2*box.padding;
-                            } else if (sin_angle < 0 && cos_angle > 0) {
-                                x -= line.width - 2*box.padding;
-                                y += line.height - 2*box.padding;
-                            }
-
-                            ctx.translate(x, y);
-                            ctx.rotate(angle);
-                            ctx.fillText(line.text, 0, 0);
-                            ctx.restore();
-                        } else {
-                            if (axis.direction == "x") {
-                                x = plotOffset.left + axis.p2c(tick.v) - line.width/2;
-                                if (axis.position == "bottom")
-                                    y = box.top + box.padding;
-                                else
-                                    y = box.top + box.height - box.padding - tick.height;
-                            }
-                            else {
-                                y = plotOffset.top + axis.p2c(tick.v) - tick.height/2;
-                                if (axis.position == "left")
-                                    x = box.left + box.width - box.padding - line.width;
-                                else
-                                    x = box.left + box.padding;
-                            }
-
-                            // account for middle aligning and line number
-                            y += line.height/2 + offset;
-                            offset += line.height;
-
-                            if ($.browser.opera) {
-                                // FIXME: UGLY BROWSER DETECTION
-                                // round the coordinates since Opera
-                                // otherwise switches to more ugly
-                                // rendering (probably non-hinted) and
-                                // offset the y coordinates since it seems
-                                // to be off pretty consistently compared
-                                // to the other browsers
-                                x = Math.floor(x);
-                                y = Math.ceil(y - 2);
-                            }
-                            ctx.fillText(line.text, x, y);
+                        
+                        if (axis.direction == "x") {
+                            x = plotOffset.left + axis.p2c(tick.v) - line.width/2;
+                            if (axis.position == "bottom")
+                                y = box.top + box.padding;
+                            else
+                                y = box.top + box.height - box.padding - tick.height;
                         }
+                        else {
+                            y = plotOffset.top + axis.p2c(tick.v) - tick.height/2;
+                            if (axis.position == "left")
+                                x = box.left + box.width - box.padding - line.width;
+                            else
+                                x = box.left + box.padding;
+                        }
+
+                        // account for middle aligning and line number
+                        y += line.height/2 + offset;
+                        offset += line.height;
+
+                        if ($.browser.opera) {
+                            // FIXME: UGLY BROWSER DETECTION
+                            // round the coordinates since Opera
+                            // otherwise switches to more ugly
+                            // rendering (probably non-hinted) and
+                            // offset the y coordinates since it seems
+                            // to be off pretty consistently compared
+                            // to the other browsers
+                            x = Math.floor(x);
+                            y = Math.ceil(y - 2);
+                        }
+                        ctx.fillText(line.text, x, y);
                     }
                 }
-		if (axis.options.axisLabel) {
-	        	ctx.save();
-        	        ctx.font = f.style + " " + f.variant + " " + f.weight + " " + f.size + "px '" + f.family + "'";
-                        m = ctx.measureText(axis.options.axisLabel);
-			h= m.height != null ? m.height : f.size;
-			w= m.width;
-			if (axis.direction == 'y') {
-				if (axis.options.position=='left') {
-					angle =  - Math.PI/2 ;
-					ydiff = w/2;
-				} else { 
-					angle = Math.PI/2;
-					ydiff = -w/2;
-					x = x + box.width - box.padding;
-				}
-				y = (box.height / 2) + ydiff;
-				x = x-h;
-			} else {
-				angle=0
-			}
-                        ctx.translate(x, y);
-                        ctx.rotate(angle);
-                        ctx.fillText(axis.options.axisLabel, 0, 0);
-	        	ctx.restore();
-	      }
-
             });
 
             ctx.restore();
         }
 
         function drawSeries(series) {
-		if (series.yaxis.n < 0) return;
             if (series.lines.show)
                 drawSeriesLines(series);
             if (series.bars.show)
@@ -2096,75 +2014,28 @@
         }
 
         function drawSeriesPoints(series) {
-            function plotPoints(datapoints, radius, fillStyle, offset, shadow, axisx, axisy, symbol, image) {
+            function plotPoints(datapoints, radius, fillStyle, offset, shadow, axisx, axisy, symbol) {
                 var points = datapoints.points, ps = datapoints.pointsize;
 
-								if(symbol == "image") //needs work at 2815+ too
-                {	
-                	if(offset == 0) //so overlap dot doesn't get plotted
-                	{			
-	                	var img = new Image();  
-										img.src = image;
-										//img.src = '/public/img/circle.gif';
-	                	img.onload = function(){
-	                	
-		                	for (var i = 0; i < points.length; i += ps) {
-		                  
-			                  var x = points[i], y = points[i + 1];
-			                  if (x == null || x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
-			                      continue;   
-			                      
-			                 	//console.log(datapoints);
-														
-												//this is insane but it works											
-												//x = parseInt(axisx.p2c(x)) - parseInt(radius) - parseInt(ctx.lineWidth*2); 
-												//y = parseInt(axisy.p2c(y)) + parseInt(offset) + parseInt(radius*2) - parseInt(img.height/2) + parseInt(ctx.lineWidth*2);
-	
-												//x = parseInt(axisx.p2c(x)) - parseInt(radius) - parseInt(ctx.lineWidth*2); 
-												//y = parseInt(axisy.p2c(y)) + parseInt(offset) + parseInt(radius*2) - parseInt(img.height/2) + parseInt(ctx.lineWidth*2);
-
-												x = parseInt(axisx.p2c(x)) - parseInt(radius) - parseInt(ctx.lineWidth*2); 
-												y = parseInt(axisy.p2c(y)) + parseInt(radius*2) - parseInt(img.height/2) + parseInt(ctx.lineWidth*2);
-												
-												//console.log(offset);
-												
-												//ctx.beginPath();
-												//console.log(ctx.fillStyle);
-												
-	                      //console.log('X: ' + x + ' Y: ' + y);                
-	                      //console.log('Width: ' + img.width + ' Height: ' + img.height + ' Radius: ' + radius + ' Line Width: ' + ctx.lineWidth);                													
-	                      
-	                      //ctx.drawImage(img,x,y);
-	                      ctx.drawImage(img,x+img.width*.1,y+img.height*.1,img.width*.9,img.height*.9);
-		
-			                }			            
-									  }
-								  }
-                }
-                else
-                {																
-	                for (var i = 0; i < points.length; i += ps) {
-	                  
-	                  var x = points[i], y = points[i + 1];
-	                  if (x == null || x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
-	                      continue;                 
-	                                    
-	                    ctx.beginPath();
-	                  	x = axisx.p2c(x);
-	                    y = axisy.p2c(y) + offset;	 
-	                    	                                       
-	                    if (symbol == "circle")
-	                        ctx.arc(x, y, radius, 0, shadow ? Math.PI : Math.PI * 2, false);
-	                   	else
-	                        symbol(ctx, x, y, radius, shadow);
-	                    ctx.closePath();
-	                    
-	                    if (fillStyle) {
-	                        ctx.fillStyle = fillStyle;
-	                        ctx.fill();
-	                    }
-	                    ctx.stroke();
-	                }
+                for (var i = 0; i < points.length; i += ps) {
+                    var x = points[i], y = points[i + 1];
+                    if (x == null || x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
+                        continue;
+                    
+                    ctx.beginPath();
+                    x = axisx.p2c(x);
+                    y = axisy.p2c(y) + offset;
+                    if (symbol == "circle")
+                        ctx.arc(x, y, radius, 0, shadow ? Math.PI : Math.PI * 2, false);
+                    else
+                        symbol(ctx, x, y, radius, shadow);
+                    ctx.closePath();
+                    
+                    if (fillStyle) {
+                        ctx.fillStyle = fillStyle;
+                        ctx.fill();
+                    }
+                    ctx.stroke();
                 }
             }
             
@@ -2192,7 +2063,7 @@
             ctx.strokeStyle = series.color;
             plotPoints(series.datapoints, radius,
                        getFillStyle(series.points, series.color), 0, false,
-                       series.xaxis, series.yaxis, symbol, series.image); //added image
+                       series.xaxis, series.yaxis, symbol);
             ctx.restore();
         }
 
@@ -2663,7 +2534,6 @@
             for (i = series.length - 1; i >= 0; --i) {
                 if (!seriesFilter(series[i]))
                     continue;
-                if (series[i].yaxis.n<0) continue;
                 
                 var s = series[i],
                     axisx = s.xaxis,
@@ -2691,13 +2561,13 @@
                         // For points and lines, the cursor must be within a
                         // certain distance to the data point
                         if (x - mx > maxx || x - mx < -maxx ||
-                            (y - my > maxy || y - my < -maxy) && ! options.grid.mouseActiveIgnoreY )
+                            y - my > maxy || y - my < -maxy)
                             continue;
 
                         // We have to calculate distances in pixels, not in
                         // data units, because the scales of the axes may be different
-                        var dx = Math.abs(axisx.p2c(x) - mouseX);
-                            dy = options.grid.mouseActiveIgnoreY ? 0 : Math.abs(axisy.p2c(y) - mouseY);
+                        var dx = Math.abs(axisx.p2c(x) - mouseX),
+                            dy = Math.abs(axisy.p2c(y) - mouseY),
                             dist = dx * dx + dy * dy; // we save the sqrt
 
                         // use <= to ensure last point takes precedence
@@ -2763,7 +2633,6 @@
         // trigger click or hover event (they send the same parameters
         // so we share their code)
         function triggerClickHoverEvent(eventname, event, seriesFilter) {
-
             var offset = eventHolder.offset(),
                 canvasX = event.pageX - offset.left - plotOffset.left,
                 canvasY = event.pageY - offset.top - plotOffset.top,
@@ -2771,7 +2640,6 @@
 
             pos.pageX = event.pageX;
             pos.pageY = event.pageY;
-
 
             var item = findNearbyItem(canvasX, canvasY, seriesFilter);
 
@@ -2792,18 +2660,11 @@
                         unhighlight(h.series, h.point);
                 }
                 
-                if (item) {
-			if (options.grid.mouseActiveIgnoreY)
-				for (i = 0; i < series.length; ++i) {
-			            highlight(i, item.dataIndex, eventname);
-				}
-			else
-				highlight(item.series, item.datapoint, eventname);
-
-		}
-
+                if (item)
+                    highlight(item.series, item.datapoint, eventname);
             }
-            placeholder.trigger(eventname, [ pos, item, placeholder, event ]);
+            
+            placeholder.trigger(eventname, [ pos, item ]);
         }
 
         function triggerRedrawOverlay() {
@@ -2891,91 +2752,31 @@
         function drawPointHighlight(series, point) {
             var x = point[0], y = point[1],
                 axisx = series.xaxis, axisy = series.yaxis;
-                highlightColor = (typeof series.highlightColor === "string") ? series.highlightColor : $.color.parse(series.color).scale('a', 0.5).toString();
             
             if (x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
                 return;
             
-            if(series.points.symbol == "image")
-            {
-            	console.log(series);
-            	
-            	/*
-	            var pointRadius = series.points.radius + series.points.lineWidth / 2;
-	            octx.lineWidth = pointRadius;
-	            octx.strokeStyle = $.color.parse(series.color).scale('a', 0.5).toString();
-	            var radius = 1.5 * pointRadius,
-	                x = axisx.p2c(x),
-	                y = axisy.p2c(y);
-							
-							octx.lineWidth = 10;
-	            
-	            octx.beginPath();
-
-	           	octx.arc(x, y, 40, 0, 2 * Math.PI, false);
-
-	            octx.closePath();
-	            //octx.fill(); //nope
-	            
-	            octx.stroke();
-	            */
-	        
-	            var pointRadius = series.points.radius + series.points.lineWidth / 2;
-	            octx.lineWidth = pointRadius;
-	            
-            	var img = new Image();  
-							img.src = series.image;
-							//img.src = '/public/img/circle.gif';
-            	img.onload = function(){
-          
-               	//console.log(datapoints);
-										
-								//this is insane but it works											
-								//x = parseInt(axisx.p2c(x)) - parseInt(radius) - parseInt(ctx.lineWidth*2); 
-								//y = parseInt(axisy.p2c(y)) + parseInt(offset) + parseInt(radius*2) - parseInt(img.height/2) + parseInt(ctx.lineWidth*2);
-
-								//x = parseInt(axisx.p2c(x) - parseInt(octx.lineWidth*2)); 
-								//y = parseInt(axisy.p2c(y)) - img.height/2;
-								
-								x = parseInt(axisx.p2c(x)) - parseInt(octx.lineWidth*2); 
-								y = parseInt(axisy.p2c(y)) - parseInt(img.height/2) + parseInt(octx.lineWidth*10);
-	              
-	              console.log(x);
-	              console.log(y);  
-	                
-                //ctx.drawImage(img,x,y);
-                octx.drawImage(img,x,y);
-							}
-	            
-            }
-            else
-            {                                           
-	            var pointRadius = series.points.radius + series.points.lineWidth / 2;
-	            octx.lineWidth = pointRadius;
-            	octx.strokeStyle = highlightColor;
-	            var radius = 1.5 * pointRadius,
-	                x = axisx.p2c(x),
-	                y = axisy.p2c(y);
-	            
-	            octx.beginPath();
-	            if (series.points.symbol == "circle")
-	                octx.arc(x, y, radius, 0, 2 * Math.PI, false);
-	            else
-	                series.points.symbol(octx, x, y, radius, false);
-	            octx.closePath();
-	            octx.stroke();
+            var pointRadius = series.points.radius + series.points.lineWidth / 2;
+            octx.lineWidth = pointRadius;
+            octx.strokeStyle = $.color.parse(series.color).scale('a', 0.5).toString();
+            var radius = 1.5 * pointRadius,
+                x = axisx.p2c(x),
+                y = axisy.p2c(y);
             
-            }
+            octx.beginPath();
+            if (series.points.symbol == "circle")
+                octx.arc(x, y, radius, 0, 2 * Math.PI, false);
+            else
+                series.points.symbol(octx, x, y, radius, false);
+            octx.closePath();
+            octx.stroke();
         }
 
         function drawBarHighlight(series, point) {
-            var highlightColor = (typeof series.highlightColor === "string") ? series.highlightColor : $.color.parse(series.color).scale('a', 0.5).toString(),
-                fillStyle = highlightColor,
-                barLeft = series.bars.align == "left" ? 0 : -series.bars.barWidth/2;
-                
             octx.lineWidth = series.bars.lineWidth;
-            octx.strokeStyle = highlightColor;
-            
+            octx.strokeStyle = $.color.parse(series.color).scale('a', 0.5).toString();
+            var fillStyle = $.color.parse(series.color).scale('a', 0.5).toString();
+            var barLeft = series.bars.align == "left" ? 0 : -series.bars.barWidth/2;
             drawBar(point[0], point[1], point[2] || 0, barLeft, barLeft + series.bars.barWidth,
                     0, function () { return fillStyle; }, series.xaxis, series.yaxis, octx, series.bars.horizontal, series.bars.lineWidth);
         }
