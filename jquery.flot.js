@@ -410,13 +410,14 @@
         }
         
         function getOrCreateAxis(axes, number) {
+   	    if (number < 0) number=1000;
             if (!axes[number - 1])
                 axes[number - 1] = {
                     n: number, // save the number for future reference
                     direction: axes == xaxes ? "x" : "y",
                     options: $.extend(true, {}, axes == xaxes ? options.xaxis : options.yaxis)
                 };
-                
+            if (number==1000) axes[number-1].options.show = false;    
             return axes[number - 1];
         }
 
@@ -1705,6 +1706,7 @@
         }
 
         function drawSeries(series) {
+	    if (series.show == false) return;
             if (series.lines.show)
                 drawSeriesLines(series);
             if (series.bars.show)
