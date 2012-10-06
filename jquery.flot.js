@@ -71,6 +71,7 @@
                     tickFormatter: null, // fn: number -> string
                     labelWidth: null, // size of tick labels in pixels
                     labelHeight: null,
+                    labelAngle: null,
                     reserveSpace: null, // whether to reserve space even if axis isn't shown
                     tickLength: null, // size in pixels of ticks, or "full" for whole line
                     alignTicksWithAxis: null, // axis number or null for no sync
@@ -976,6 +977,14 @@
 
             axis.labelWidth = Math.ceil(axisw);
             axis.labelHeight = Math.ceil(axish);
+
+            // This should be the future entry-point
+            if(opts.axisLabel && ! axis.labelGenerator) {
+        		throw new Error("Axislabel requires the flot.axislabel plugin.");
+            } else if(opts.axisLabel) {
+                axis.labelGenerator.labelCalcsize(axis,ctx); 
+            }
+
         }
 
         function allocateAxisBoxFirstPhase(axis) {
@@ -1681,6 +1690,14 @@
                         ctx.fillText(line.text, x, y);
                     }
                 }
+
+                // This should be the future entry-point
+                if(axis.options.axisLabel && ! axis.labelGenerator) {
+            		throw new Error("Axislabel requires the flot.axislabel plugin.");
+                } else if(axis.options.axisLabel) {
+                    axis.labelGenerator.drawAxislabel(axis,ctx,x,y); 
+                }
+
             });
 
             ctx.restore();
