@@ -2410,6 +2410,9 @@
 
             pos.pageX = event.pageX;
             pos.pageY = event.pageY;
+            
+	    pos.clientX = event.clientX;
+            pos.clientY = event.clientY;
 
             var item = findNearbyItem(canvasX, canvasY, seriesFilter);
 
